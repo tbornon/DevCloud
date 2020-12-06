@@ -1,10 +1,9 @@
 /* Import required librairies */
 const csv = require('csv-parser')
 const fs = require('fs')
-const { Transform } = require('stream');
+const { Transform, Readable } = require('stream');
 
-let calendarDataBuffer = []
-let actualListing = -1 
+let calendarDataBuffer = {}
 
 /* List of transformations that will be done
  * inputFile : csv file that will be transformed
@@ -15,43 +14,36 @@ const TRANSFORMS = {
     calendar: {
         inputFile: "dataset/calendar.csv",
         outputFile: "model2/calendar.json",
-        transform: function (chunk, enc, cb) {            
-            let _data = {
-                listing_id: chunk.listing_id,
-                dayOfTheYear: dayOfTheYear(chunk.date),
-                available: chunk.available === "f" ? false : true,
-                maximum_nights: parseInt(chunk.maximum_nights),
-                minimum_nights: parseInt(chunk.minimum_nights),
-                price: removeDollarAndParseFloat(chunk.price)
-            };
-            
+        transform: function (chunk, enc, cb) {
+            let date = new Date(chunk.date);
+            let year = date.getFullYear();
+            let month = date.getMonth();
+            let day = date.getDate();
 
-            if(actualListing == -1) actualListing = chunk.listing_id;
-            if(actualListing != chunk.listing_id) {
-                let mergedDatas = calendarDataBuffer.reduce((accumulator, currentVal) => {
-                    accumulator.price[currentVal.dayOfTheYear] = currentVal.price;
-                    accumulator.available[currentVal.dayOfTheYear] = currentVal.available;
-                }, {
-                    listing_id: calendarDataBuffer[0].listing_id,
-                    maximum_nights: calendarDataBuffer[0].maximum_nights,
-                    minimum_nights: calendarDataBuffer[0].minimum_nights,
-                    price: [],
-                    available: []
-                });
-
-                actualListing = chunk.listing_id;
-                calendarDataBuffer.splice(0, calendarDataBuffer.length);
-                calendarDataBuffer.push(_data)
-
-                this.push(JSON.stringify(mergedDatas));
-                cb();
-            }
-            else {
-                calendarDataBuffer.push(_data)
-                this.push("a");
-                cb();
+            if (calendarDataBuffer[chunk.listing_id] == undefined) {
+                calendarDataBuffer[chunk.listing_id] = {
+                    listing_id: chunk.listing_id,
+                    maximum_nights: parseInt(chunk.maximum_nights),
+                    minimum_nights: parseInt(chunk.minimum_nights),
+                    price: {},
+                    available: {}
+                };
             }
 
+            if (calendarDataBuffer[chunk.listing_id].price[year] == undefined) {
+                calendarDataBuffer[chunk.listing_id].price[year] = {};
+                calendarDataBuffer[chunk.listing_id].available[year] = {};
+            }
+
+            if (calendarDataBuffer[chunk.listing_id].price[year][month] == undefined) {
+                calendarDataBuffer[chunk.listing_id].price[year][month] = {};
+                calendarDataBuffer[chunk.listing_id].available[year][month] = {};
+            }
+
+            calendarDataBuffer[chunk.listing_id].price[year][month][day] = removeDollarAndParseFloat(chunk.price);
+            calendarDataBuffer[chunk.listing_id].available[year][month][day] = chunk.available === "f" ? false : true;
+
+            cb();
         }
     },
     reviews: {
@@ -128,16 +120,40 @@ const TRANSFORMS = {
 // Remove dollar sign from a string and parse it into float
 const removeDollarAndParseFloat = data => parseFloat(data.replace('$', ''));
 
-// Return the number of the day in the year - 1 
-// Source : https://stackoverflow.com/a/8619946
-const dayOfTheYear = date => {
-    var now = new Date(date);
-    var start = new Date(now.getFullYear(), 0, 0);
-    var diff = (now - start) + ((start.getTimezoneOffset() - now.getTimezoneOffset()) * 60 * 1000);
-    var oneDay = 1000 * 60 * 60 * 24;
-    var day = Math.floor(diff / oneDay);
-    return day;
+function* calendarBufferIterator() {
+    let keys = Object.keys(calendarDataBuffer);
+    yield "["
+    for (let i = 0; i < keys.length; i++) {
+        if (i != keys.length - 1)
+            yield JSON.stringify(calendarDataBuffer[keys[i]]) + ",\n";
+        else
+            yield JSON.stringify(calendarDataBuffer[keys[i]]) + "\n";
+    }
+    yield "]"
 }
+
+let csvTransformCalendar = options =>
+    new Promise(resolve => {
+        // Create csv read stream
+        let readable = fs.createReadStream(options.inputFile)
+        // Create json write stream
+        let writable = fs.createWriteStream(options.outputFile)
+        let jsonReadable = new Readable.from(calendarBufferIterator());
+
+
+        readable
+            .pipe(csv())
+            .pipe(new Transform({ objectMode: true, transform: options.transform }))
+            .once("finish", () => {
+                console.log("Start writing calendar.json")
+
+                jsonReadable
+                    .pipe(writable).once("close", () => {
+                        resolve();
+                    });;
+            });
+
+    });
 
 // Flow for transforming data
 let csvTransform = options =>
@@ -169,7 +185,7 @@ let csvTransform = options =>
 function main() {
     // Flow for transforming all files one by one. Could maybe be done in parallel for faster results ?
     fs.mkdir("model2", err => {
-        csvTransform(TRANSFORMS.calendar)
+        csvTransformCalendar(TRANSFORMS.calendar)
             .then(() => csvTransform(TRANSFORMS.reviews))
             .then(() => csvTransform(TRANSFORMS.listings))
             .then(() => {
