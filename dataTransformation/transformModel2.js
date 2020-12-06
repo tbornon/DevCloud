@@ -109,7 +109,16 @@ const TRANSFORMS = {
                 number_of_reviews: parseInt(chunk.number_of_reviews),
                 number_of_reviews_ltm: parseInt(chunk.number_of_reviews),
                 price: removeDollarAndParseFloat(chunk.price),
-                monthly_price: removeDollarAndParseFloat(chunk.monthly_price)
+                monthly_price: removeDollarAndParseFloat(chunk.monthly_price),
+                property_type: chunk.property_type,
+                review_scores_accuracy: parseInt(chunk.review_scores_accuracy),
+                review_scores_checkin: parseInt(chunk.review_scores_checkin),
+                review_scores_cleanliness: parseInt(chunk.review_scores_cleanliness),
+                review_scores_communication: parseInt(chunk.review_scores_communication),
+                review_scores_location: parseInt(chunk.review_scores_location),
+                review_scores_rating: parseInt(chunk.review_scores_rating),
+                review_scores_value: parseInt(chunk.review_scores_value),
+                reviews_per_month: parseInt(chunk.reviews_per_month)
             };
 
             this.push(JSON.stringify(_data) + ",\n");
