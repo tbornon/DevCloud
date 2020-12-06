@@ -22,6 +22,8 @@ const TRANSFORMS = {
                 price: removeDollarAndParseFloat(chunk.price),
                 adjusted_price: removeDollarAndParseFloat(chunk.adjusted_price),
             };
+
+            // Push datas out of that streaming element
             this.push(JSON.stringify(_data) + ",\n");
             cb();
         }
@@ -39,6 +41,7 @@ const TRANSFORMS = {
                 reviewer_name: chunk.reviewer_name
             };
 
+            // Push datas out of that streaming element
             this.push(JSON.stringify(_data) + ",\n");
             cb();
         }
@@ -91,6 +94,7 @@ const TRANSFORMS = {
                 monthly_price: removeDollarAndParseFloat(chunk.monthly_price)
             };
 
+            // Push datas out of that streaming element
             this.push(JSON.stringify(_data) + ",\n");
             cb();
         }

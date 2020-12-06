@@ -20,6 +20,7 @@ const TRANSFORMS = {
             let month = date.getMonth();
             let day = date.getDate();
 
+            // If that listing isn't already in the calendarDataBuffer, create an entry for it
             if (calendarDataBuffer[chunk.listing_id] == undefined) {
                 calendarDataBuffer[chunk.listing_id] = {
                     listing_id: chunk.listing_id,
@@ -120,6 +121,7 @@ const TRANSFORMS = {
 // Remove dollar sign from a string and parse it into float
 const removeDollarAndParseFloat = data => parseFloat(data.replace('$', ''));
 
+// Iterable to stringify all json in the calendarDataBuffer
 function* calendarBufferIterator() {
     let keys = Object.keys(calendarDataBuffer);
     yield "["
@@ -132,23 +134,27 @@ function* calendarBufferIterator() {
     yield "]"
 }
 
+// Transform CSV into JSON
 let csvTransformCalendar = options =>
     new Promise(resolve => {
         // Create csv read stream
         let readable = fs.createReadStream(options.inputFile)
         // Create json write stream
         let writable = fs.createWriteStream(options.outputFile)
+        // Create stream from iterable
         let jsonReadable = new Readable.from(calendarBufferIterator());
 
-
+        // Read all data, parse them and store it in calendarDataBuffer
         readable
             .pipe(csv())
+            // Transformation
             .pipe(new Transform({ objectMode: true, transform: options.transform }))
             .once("finish", () => {
                 console.log("Start writing calendar.json")
-
+                // When all data are loaded, write them into json file
                 jsonReadable
-                    .pipe(writable).once("close", () => {
+                    .pipe(writable)
+                    .once("close", () => {
                         resolve();
                     });;
             });
