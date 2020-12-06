@@ -11,8 +11,8 @@ Modèle 1 : db.listings_detailed.find({"neighbourhood_group": "Barajas"}).sort({
 Modèle 2 : db.listings_detailed.find({"neighbourhood_group": "Barajas"}).sort({"availability365": -1}).limit(10).explain("executionStats");
 
 # Requête 4. Note moyenne des quartiers calculées grâce aux commentaires des utlisateurs 
-Modèle 1 : db.listings_detailed.aggregate([ { $group: { _id: "$neighbourhood", avgScore: { $avg: "$review_scores_location" } } }, { $sort: { avgScore: -1 } } ]).explain("executionStats");
-Modèle 2 : db.listings_detailed.aggregate([ { $group: { _id: "$neighbourhood", avgScore: { $avg: "$review_scores_location" } } }, { $sort: { avgScore: -1 } } ]).explain("executionStats");
+Modèle 1 : db.listings_detailed.explain("executionStats").aggregate([ { $group: { _id: "$neighbourhood", avgScore: { $avg: "$review_scores_location" } } }, { $sort: { avgScore: -1 } } ]);
+Modèle 2 : db.listings_detailed.explain("executionStats").aggregate([ { $group: { _id: "$neighbourhood", avgScore: { $avg: "$review_scores_location" } } }, { $sort: { avgScore: -1 } } ]);
 
 # Requête 5. Distribution du prix des locations en fonction des quartiers
 Modèle 1 : db.listings_detailed.explain("executionStats").aggregate([{ $group: { _id: "$neighbourhood", avgPrice: { $avg: "$price" }}}, { $sort: { avgPrice: -1 }}]);  
